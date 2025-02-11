@@ -1,0 +1,178 @@
+# version of docker-compose
+version: '2.2'
+
+# external network
+networks:
+ macvlan-network:
+  external: true
+ macvlan-network2:
+  external: true
+
+# services (container)
+services:
+ ros-master:
+  image: mm-ros-control:latest
+  container_name: ros-master
+  networks:
+   macvlan-network:
+    ipv4_address: 192.168.1.2
+   macvlan-network2:
+    ipv4_address: 192.168.2.2
+  environment:
+   - "ROS_MASTER_URI=http://192.168.1.2:11311"
+   - "ROS_HOSTNAME=192.168.1.2"
+  command: stdbuf -o L roscore
+  restart: always
+
+ ur-ros-driver:
+  image: mm-ros-control:latest
+  container_name: ur-ros-driver
+  depends_on:
+   - ros-master
+  networks:
+   macvlan-network:
+    ipv4_address: 192.168.1.3
+  environment:
+   - "ROS_MASTER_URI=http://192.168.1.2:11311"
+   - "ROS_HOSTNAME=192.168.1.3"
+   - "DISPLAY=$DISPLAY"
+  volumes:
+   - /tmp/.X11-unix:/tmp/.X11-unix:rw
+  command: bash -c "source /opt/ros/noetic/setup.bash && cd ~/catkin_ws && catkin_make && source ~/catkin_ws/devel/setup.bash && roslaunch ur_robot_driver ur10_cartesian_passthrough_bringup.launch robot_ip:=192.168.1.102"
+  cpus: 1.0
+  privileged: true
+  restart: always
+
+ ur-ros-control:
+  image: mm-ros-control:latest
+  container_name: ur-ros-control
+  depends_on:
+   - ros-master
+   - ur-ros-driver
+  networks:
+   macvlan-network:
+    ipv4_address: 192.168.1.4
+  environment:
+   - "ROS_MASTER_URI=http://192.168.1.2:11311"
+   - "ROS_HOSTNAME=192.168.1.4"
+   - "DISPLAY=$DISPLAY" # for keyboard input
+  volumes:
+   - ./ur_ros_cartesian_control:/root/catkin_ws/src/ur_ros_cartesian_control
+   - /tmp/.X11-unix:/tmp/.X11-unix:rw # for keyboard input
+  command: tail -F anything
+  privileged: true
+
+ amr-ros-control:
+  image: mm-ros-control:latest
+  container_name: amr-ros-control
+  depends_on:
+   - ros-master
+  networks:
+   macvlan-network:
+    ipv4_address: 192.168.1.5
+  environment:
+   - "ROS_MASTER_URI=http://192.168.1.2:11311"
+   - "ROS_HOSTNAME=192.168.1.5"
+   - "DISPLAY=$DISPLAY" # for keyboard input
+  volumes:
+   - ./can_sending:/root/catkin_ws/src/can_sending
+   - /dev:/dev:rw
+   - /tmp/.X11-unix:/tmp/.X11-unix:rw # for keyboard input
+  command: tail -F anything
+  privileged: true
+
+ ros-autoware:
+  image: docker.io/autoware/autoware:latest-melodic-cuda
+  container_name: ros-autoware
+  depends_on:
+   - ros-master
+   - amr-ros-control
+  networks:
+   macvlan-network:
+    ipv4_address: 192.168.1.6
+   macvlan-network2:
+    ipv4_address: 192.168.2.6
+  environment:
+   - "ROS_MASTER_URI=http://192.168.1.2:11311"
+   - "ROS_HOSTNAME=192.168.1.6"
+   - "DISPLAY=$DISPLAY" 
+  volumes:
+   - /tmp/.X11-unix:/tmp/.X11-unix:rw
+   - ./autoware_map:/autoware
+  command: tail -F anything
+  privileged: true
+
+ image_proc:
+    image: real-sense:latest
+    container_name: image_proc
+    depends_on:
+      - ros-master
+    networks: 
+      macvlan-network: 
+        ipv4_address: 192.168.1.7
+    environment:
+      - "ROS_MASTER_URI=http://192.168.1.2:11311"
+      - "ROS_HOSTNAME=192.168.1.7"
+      - "DISPLAY=$DISPLAY"
+      - "QT_X11_NO_MITSHM=1"
+      - "${XAUTHORITY}:${XAUTHORITY}"
+    volumes:
+      - ~/mm_ros_control/Vision:/root/catkin_ws/src/vision_detection
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw 
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: tail -F anything
+    cpus: 1.0
+    privileged: true
+    restart: always
+    #depth_width:=1280 depth_height:=720
+
+ realsense:
+  image: real-sense:latest
+  container_name: realsense
+  depends_on:
+    - ros-master
+  networks: 
+    macvlan-network: 
+      ipv4_address: 192.168.1.8
+  environment:
+    - "ROS_MASTER_URI=http://192.168.1.2:11311"
+    - "ROS_HOSTNAME=192.168.1.8"
+    - "DISPLAY=$DISPLAY" 
+  volumes:
+    - /tmp/.X11-unix:/tmp/.X11-unix:rw    
+    - /dev/bus/usb:/dev/bus/usb:rw  
+  command: >
+    bash -c " cd ~/catkin_ws &&
+    source /opt/ros/noetic/setup.bash &&
+    roslaunch realsense2_camera rs_camera.launch filters:=spatial,decimation,pointcloud clip_distance:=1.0 align_depth:=true enable_sync:=true unite_imu_method:="linear_interpolation" enable_gyro:=true enable_accel:=true"
+  cpus: 1.0
+  privileged: true
+  restart: always
+
+ robotiq-gripper:
+  image: gripper-ros-control:latest
+  container_name: gripper
+  depends_on:
+   - ros-master
+   - ur-ros-driver
+   - ur-ros-control
+  networks: 
+    macvlan-network: 
+      ipv4_address: 192.168.1.9
+  environment:
+    - "ROS_MASTER_URI=http://192.168.1.2:11311"
+    - "ROS_HOSTNAME=192.168.1.9"
+    - "DISPLAY=$DISPLAY" 
+  volumes:
+    - /tmp/.X11-unix:/tmp/.X11-unix:rw  
+    - /dev:/dev:rw    
+  command: bash -c "cd ~/catkin_ws && source devel/setup.bash && rosrun robotiq_vacuum_grippers_control RobotiqVacuumGrippersRtuNode.py /dev/ttyUSB0"
+  cpus: 1.0
+  privileged: true
+  restart: always

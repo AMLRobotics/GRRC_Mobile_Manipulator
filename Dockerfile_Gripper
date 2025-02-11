@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1
+FROM osrf/ros:kinetic-desktop-full
+
+# Install Packages for Installing Python Packages
+RUN /bin/bash -c "apt-get update -y &&\
+    apt-get install -y python-pip &&\
+    apt-get install -y python-all-dev &&\
+    apt-get install -y python-rospkg &&\
+    apt-get install -y python-pymodbus &&\
+    apt-get install -y ros-kinetic-desktop-full --fix-missing &&\
+    apt-get install -y ros-kinetic-socketcan-interface &&\
+    apt-get install -y ros-kinetic-hardware-interface &&\
+    apt-get install -y ros-kinetic-soem"
+
+RUN /bin/bash -c "apt-get update -y &&\
+    apt-get install -y build-essential &&\
+    apt-get install -y libssl-dev &&\
+    apt-get install -y libffi-dev &&\
+    apt-get install -y libxml2-dev &&\
+    apt-get install -y libxslt1-dev &&\
+    apt-get install -y git &&\
+    apt-get install -y zlib1g-dev"
+
+# Create catkin workspace
+# Install Epick Gripper Driver
+RUN /bin/bash -c "apt-get update &&\
+    source /opt/ros/kinetic/setup.bash &&\
+    mkdir -p ~/catkin_ws/src && cd ~/catkin_ws &&\
+    git clone -b kinetic-devel https://github.com/jproberge/robotiq src/Robotiq_ROS_Driver &&\
+    git clone -b kinetic-devel https://github.com/ros-controls/ros_control.git src/ros_control &&\
+    sudo apt update -qq &&\
+    rosdep update &&\
+    rosdep install --from-paths src --ignore-src -r --rosdistro=${ROS_DISTRO} -y --os=ubuntu:xenial  &&\
+    cd ~/catkin_ws &&\
+    catkin_make &&\
+    source devel/setup.bash"
+
+# Install Pynput Package for Keyboard Input Control
+# RUN python -m pip install pynput
+
+# Install scipy
+# RUN python -m pip install scipy
+
+# Additional
+RUN /bin/bash -c "apt-get update -y &&\
+    apt-get install -y python-tk &&\
+    apt-get install -y tk-dev"

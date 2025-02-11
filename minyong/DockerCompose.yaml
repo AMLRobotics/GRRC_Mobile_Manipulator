@@ -1,0 +1,171 @@
+# version of docker-compose
+version: '2.2'
+
+# external network
+networks:
+  macvlan-network:
+    external: true
+
+# services (container)
+services:
+  ros-master:
+    image: ros:noetic
+    container_name: ros-master
+    networks: 
+      macvlan-network: 
+        ipv4_address: 192.168.0.2
+    environment:
+      - "ROS_MASTER_URI=http://192.168.0.2:11311"
+      - "ROS_HOSTNAME=192.168.0.2"
+    command: stdbuf -o L roscore
+    restart: always
+
+
+  #UR10 A
+  #ur10_bringup
+  #ur10_cartesian_bringup
+  #ur10_cartesian_passthrough_bringup
+  ur-ros-driver:
+    image: grrc:latest
+    container_name: ur-ros-driver
+    depends_on:
+      - ros-master
+    networks: 
+      macvlan-network: 
+        ipv4_address: 192.168.0.4
+    environment:
+      - "ROS_MASTER_URI=http://192.168.0.2:11311"
+      - "ROS_HOSTNAME=192.168.0.4"
+      - "DISPLAY=unix$DISPLAY"
+    volumes: 
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    command: >      
+      bash -c " cd ~/catkin_ws &&
+      source ~/catkin_ws/devel/setup.bash &&
+      roslaunch ur_robot_driver ur10_arm_1_bringup.launch robot_ip:=192.168.0.147"
+    cpus: 1.0
+    privileged: true
+    restart: always
+  
+  ur-ros-control:
+    image: grrc:latest
+    container_name: ur-ros-control
+    depends_on:
+      - ros-master
+      - ur-ros-driver
+    networks: 
+      macvlan-network: 
+        ipv4_address: 192.168.0.5
+    environment:
+      - "ROS_MASTER_URI=http://192.168.0.2:11311"
+      - "ROS_HOSTNAME=192.168.0.5"
+      - "DISPLAY=unix$DISPLAY" 
+    volumes:
+      - ~/catkin_ws/GRRC/Core:/root/catkin_ws/src/ur_ros_core
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw 
+    command: tail -F anything
+    cpus: 1.0
+    privileged: true
+    restart: always
+
+##################################################################
+
+  #UR10B
+  #ur10_bringup
+  #ur10_cartesian_bringup
+  #ur10_cartesian_passthrough_bringup
+  # ur-ros-driver2:
+  #   image: grrc:latest
+  #   container_name: ur-ros-driver2
+  #   depends_on:
+  #     - ros-master
+  #   networks: 
+  #     macvlan-network: 
+  #       ipv4_address: 192.168.0.6
+  #   environment:
+  #     - "ROS_MASTER_URI=http://192.168.0.2:11311"
+  #     - "ROS_HOSTNAME=192.168.0.6"
+  #     - "DISPLAY=unix$DISPLAY"
+  #   volumes: 
+  #     - /tmp/.X11-unix:/tmp/.X11-unix:rw
+  #   command: >      
+  #     bash -c " cd ~/catkin_ws2 &&
+  #     source ~/catkin_ws2/devel/setup.bash &&
+  #     roslaunch ur_robot_driver ur10_arm_2_bringup.launch robot_ip:=192.168.0.143"
+  #   cpus: 1.0
+  #   privileged: true
+  #   restart: always
+  
+  # ur-ros-control2:
+  #   image: grrc:latest
+  #   container_name: ur-ros-control2
+  #   depends_on:
+  #     - ros-master
+  #     - ur-ros-driver2
+  #   networks: 
+  #     macvlan-network: 
+  #       ipv4_address: 192.168.0.7
+  #   environment:
+  #     - "ROS_MASTER_URI=http://192.168.0.2:11311"
+  #     - "ROS_HOSTNAME=192.168.0.7"
+  #     - "DISPLAY=unix$DISPLAY" 
+  #   volumes:
+  #     - ~/catkin_ws/GRRC/Core2:/root/catkin_ws2/src/ur_ros_core2
+  #     - /tmp/.X11-unix:/tmp/.X11-unix:rw 
+  #   command: tail -F anything
+  #   cpus: 1.0
+  #   privileged: true
+  #   restart: always
+
+##################################################################
+
+  image_proc:
+    image: grrc:latest
+    container_name: image_proc
+    depends_on:
+      - ros-master
+    networks: 
+      macvlan-network: 
+        ipv4_address: 192.168.0.8
+    environment:
+      - "ROS_MASTER_URI=http://192.168.0.2:11311"
+      - "ROS_HOSTNAME=192.168.0.8"
+      - "DISPLAY=unix$DISPLAY"
+      - "QT_X11_NO_MITSHM=1"
+      - "${XAUTHORITY}:${XAUTHORITY}"
+    volumes:
+      - ~/catkin_ws/GRRC/Vision:/root/catkin_ws/src/vision
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw 
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: tail -F anything
+    cpus: 1.0
+    privileged: true
+    restart: always
+#  depth_width:=1280 depth_height:=720
+  realsense:
+    image: grrc:latest
+    container_name: realsense
+    depends_on:
+      - ros-master
+    networks: 
+      macvlan-network: 
+        ipv4_address: 192.168.0.9
+    environment:
+      - "ROS_MASTER_URI=http://192.168.0.2:11311"
+      - "ROS_HOSTNAME=192.168.0.9"
+      - "DISPLAY=unix$DISPLAY" 
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw      
+    command: >
+      bash -c " cd ~/catkin_ws &&
+      source ~/catkin_ws/devel/setup.bash &&
+      roslaunch realsense2_camera rs_camera.launch filters:=spatial,decimation,pointcloud clip_distance:=1.0 unite_imu_method:="linear_interpolation" enable_gyro:=true enable_accel:=true"
+    cpus: 1.0
+    privileged: true
+    restart: always
