@@ -5,14 +5,14 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  geometry_msgs
   message_generation
 )
 
 ## Generate messages in the 'srv' folder
-add_service_files(
-  FILES
-  cartesian_point.srv
-)
+## add_service_files(
+##   FILES
+## )
 
 generate_messages(
   DEPENDENCIES
@@ -31,6 +31,10 @@ catkin_install_python(PROGRAMS
    src/calibrate.py
    src/detection_opencv.py
    src/detection_apriltag.py
+   src/gripper_tip_tf.py
+   src/gripping_point_tf.py
+   src/hand_eye_tf.py
+   src/tool0_destination_tf.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

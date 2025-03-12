@@ -1,0 +1,15 @@
+<launch>
+  <group ns="camera/color">
+    <node pkg="image_proc" type="image_proc" name="image_proc"/>
+  </group>
+
+  <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
+    <arg name="camera_name" value="/camera/color"/>
+    <arg name="image_topic" value="image_rect_color"/>
+  </include>
+
+  <node pkg="vision_detection" type="gripper_tip_tf.py" name="gripper_tip_tf"/>
+  <node pkg="vision_detection" type="gripping_point_tf.py" name="gripping_point_tf"/>
+  <node pkg="vision_detection" type="hand_eye_tf.py" name="hand_eye_tf"/>
+  <node pkg="vision_detection" type="tool0_destination_tf.py" name="tool0_destination"/>
+</launch>

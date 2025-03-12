@@ -38,7 +38,8 @@ services:
    - "DISPLAY=$DISPLAY"
   volumes:
    - /tmp/.X11-unix:/tmp/.X11-unix:rw
-  command: bash -c "source /opt/ros/noetic/setup.bash && cd ~/catkin_ws && catkin_make && source ~/catkin_ws/devel/setup.bash && roslaunch ur_robot_driver ur10_cartesian_passthrough_bringup.launch robot_ip:=192.168.1.102"
+   - ./ur_calibration_data:/root/ur_calibration_data
+  command: bash -c "source /opt/ros/noetic/setup.bash && cd ~/catkin_ws && catkin_make && source ~/catkin_ws/devel/setup.bash && roslaunch ur_robot_driver ur10_cartesian_passthrough_bringup.launch robot_ip:=192.168.1.102 kinematics_config:=/root/ur_calibration_data/my_robot_calibration.yaml"
   cpus: 1.0
   privileged: true
   restart: always
@@ -119,6 +120,7 @@ services:
     volumes:
       - ~/mm_ros_control/Vision:/root/catkin_ws/src/vision_detection
       - /tmp/.X11-unix:/tmp/.X11-unix:rw 
+      - ./hand_eye_calib:/root/catkin_ws/src/hand_eye_calib
     deploy:
       resources:
         reservations:
@@ -127,6 +129,7 @@ services:
               count: 1
               capabilities: [gpu]
     command: tail -F anything
+    
     cpus: 1.0
     privileged: true
     restart: always
@@ -147,6 +150,7 @@ services:
   volumes:
     - /tmp/.X11-unix:/tmp/.X11-unix:rw    
     - /dev/bus/usb:/dev/bus/usb:rw  
+    - ./camera_calibration_data:/root/.ros/camera_info/
   command: >
     bash -c " cd ~/catkin_ws &&
     source /opt/ros/noetic/setup.bash &&

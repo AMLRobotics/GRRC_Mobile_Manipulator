@@ -79,11 +79,12 @@ RUN /bin/bash -c "apt-get update -y && \
 
 ADD https://www.kvaser.com/downloads-kvaser/?utm_source=software&utm_ean=7330130980754&utm_status=latest /root/
     
-RUN /bin/bash -c "cd ~/ && \
+RUN /bin/bash -c "apt-get update -y && \
+    cd ~/ && \
     mv downloads-kvaser linuxcan.tar.gz && \
     tar xvzf linuxcan.tar.gz && \
     cd ~/linuxcan && \
-    apt-get install -y linux-headers-generic && \
+    apt-get install -y linux-headers-5.15.0-131-generic && \
     apt-get install -y dkms && \
     make dkms && \
     make dkms_install"
@@ -100,6 +101,15 @@ RUN /bin/bash -c "cd ~/catkin_ws &&\
 RUN /bin/bash -c "cd ~/catkin_ws &&\
     apt-get install -y ros-noetic-serial && \
     git clone https://github.com/Hangijun/CAN_sending src/can_sending &&\
+    source /opt/ros/noetic/setup.bash &&\
+    catkin_make &&\
+    source devel/setup.bash"
+
+    RUN /bin/bash -c "apt-get update -y &&\
+    sudo apt-get install -y ros-noetic-moveit &&\
+    cd ~/catkin_ws &&\
+    git clone https://github.com/moveit/moveit_calibration.git src/moveit_calibration && \
+    rosdep install -y --from-paths . --ignore-src --rosdistro noetic &&\
     source /opt/ros/noetic/setup.bash &&\
     catkin_make &&\
     source devel/setup.bash"

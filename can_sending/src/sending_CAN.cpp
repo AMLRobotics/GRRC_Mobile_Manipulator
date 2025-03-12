@@ -269,6 +269,24 @@ static void* senderCaller(void* unused)
     stat = canWriteWait(hnd, id_motor5, msg_motor_init, dlc, canMSG_STD, 5);
     stat = canWriteWait(hnd, id_motor6, msg_motor_init, dlc, canMSG_STD, 5);
 
+    /*// can msg set to motor motors -----------------------------------
+    can_msg_set2motor(acc_msg_motor1, WRITE_ACCEL, 0.05);
+    can_msg_set2motor(acc_msg_motor2, WRITE_ACCEL, 0.05);
+    can_msg_set2motor(acc_msg_motor3, WRITE_ACCEL, 0.05);
+    can_msg_set2motor(acc_msg_motor4, WRITE_ACCEL, 0.05);
+    can_msg_set2motor(acc_msg_motor5, WRITE_ACCEL, 0.05);
+    can_msg_set2motor(acc_msg_motor6, WRITE_ACCEL, 0.05);
+
+    
+    // Send can data -----------------------------------
+    stat = canWriteWait(hnd, id_motor1, acc_msg_motor1, dlc, canMSG_STD, 5);
+    stat = canWriteWait(hnd, id_motor2, acc_msg_motor2, dlc, canMSG_STD, 5);
+    stat = canWriteWait(hnd, id_motor3, acc_msg_motor3, dlc, canMSG_STD, 5);
+    stat = canWriteWait(hnd, id_motor4, acc_msg_motor4, dlc, canMSG_STD, 5);
+    stat = canWriteWait(hnd, id_motor5, acc_msg_motor5, dlc, canMSG_STD, 5);
+    stat = canWriteWait(hnd, id_motor6, acc_msg_motor6, dlc, canMSG_STD, 5);*/
+
+
     // CAN sending ----------------------------
     // while ((stat == canOK) && !willExit) {
     while (ros::ok()) {
