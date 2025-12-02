@@ -23,7 +23,7 @@ if __name__ == '__main__':
     tag2point.child_frame_id = "gripping_point"
 
     tag2point.transform.translation.x = 0.0
-    tag2point.transform.translation.y = 0.049
+    tag2point.transform.translation.y = 0.040
     tag2point.transform.translation.z = -0.003
 
     tag2point.transform.rotation.x = 0.7071068

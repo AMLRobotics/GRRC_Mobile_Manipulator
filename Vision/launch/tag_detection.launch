@@ -12,4 +12,9 @@
   <node pkg="vision_detection" type="gripping_point_tf.py" name="gripping_point_tf"/>
   <node pkg="vision_detection" type="hand_eye_tf.py" name="hand_eye_tf"/>
   <node pkg="vision_detection" type="tool0_destination_tf.py" name="tool0_destination"/>
+
+  <node pkg="ros_detect_planes_from_depth_img" type="run_server.py" name="run_server" args="--config /root/catkin_ws/src/ros_detect_planes_from_depth_img/config/plane_detector_config.yaml
+    --depth_topic camera/aligned_depth_to_color/image_raw
+    --color_topic camera/color/image_rect_color
+    --camera_info /root/catkin_ws/src/ros_detect_planes_from_depth_img/data/cam_params_realsense.json"/>
 </launch>

@@ -97,6 +97,7 @@ services:
    - "ROS_MASTER_URI=http://192.168.1.2:11311"
    - "ROS_HOSTNAME=192.168.1.6"
    - "DISPLAY=$DISPLAY" 
+   - ${XAUTHORITY}:${XAUTHORITY}"
   volumes:
    - /tmp/.X11-unix:/tmp/.X11-unix:rw
    - ./autoware_map:/autoware

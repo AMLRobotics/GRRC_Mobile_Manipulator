@@ -42,19 +42,3 @@ catkin_install_python(PROGRAMS src/ur_joy_node.py
 
 catkin_install_python(PROGRAMS src/ur_point_node.py
                       DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-
-add_executable(ur10_ik src/ur10_ik.cpp)
-
-target_link_libraries(ur10_ik ${catkin_LIBRARIES})
-set_target_properties(ur10_ik PROPERTIES COMPILE_DEFINITIONS "UR10_PARAMS")
-target_link_libraries(ur10_ik
-  ${catkin_LIBRARIES}
-  ur10_kin)
-
-add_dependencies(ur10_ik ${catkin_EXPORTED_TARGETS})
-
-install(TARGETS ur10_ik
-        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)

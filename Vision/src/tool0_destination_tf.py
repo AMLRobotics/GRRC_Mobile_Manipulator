@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     end2end.transform.translation.x = 0.0
     end2end.transform.translation.y = 0.0
-    end2end.transform.translation.z = -0.180
+    end2end.transform.translation.z = -0.174
 
     end2end.transform.rotation.x = 0
     end2end.transform.rotation.y = 0

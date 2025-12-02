@@ -282,7 +282,7 @@ class UR():
             check = self.check_cartesian_limit(l[0], l[1], l[2], l[3], l[4], l[5])
             if check == False: return
         
-        time_from_start = 7.0
+        time_from_start = 3.0
 
         # Call Cartesian Trajectory Function with Changed Pose Parameters
         self.cartesian_traj(pose, time_from_start)
@@ -379,28 +379,15 @@ class UR():
     # there would be error from the robot controller
     # to prevent that situation, we set the limit for the controller
     def check_cartesian_limit(self, x, y, z, roll, pitch, yaw):
-        rospy.wait_for_service('motion_safety_check')
-        #safety_check = rospy.ServiceProxy('motion_safety_check', position)
-
-        try:
-            #danger = safety_check(x, y, z, roll, pitch, yaw)
-            danger = False
-        except rospy.ServiceException as exc:
-            print("Service did not process request: " + str(exc))
-            return False
-
-        if  danger:
-            return False
-        else:
-            if (pow(x,2)+pow(y,2)+pow(z,2) > 1.0) \
-                    or (pow(x,2)+pow(y,2)+pow(z,2) < 0.2):
-                    #or y > 0.0 or z < 0.0 \
-                    #or (roll > -135.0 and roll < 135.0) \
-                    #or (pitch < -45.0 or pitch > 45.0):
-                    #or (yaw > -135.0 and yaw < 135.0): 
-                return True
-            else: 
-                return True     
+        if (pow(x,2)+pow(y,2)+pow(z,2) > 1.0) \
+                or (pow(x,2)+pow(y,2)+pow(z,2) < 0.2):
+                #or y > 0.0 or z < 0.0 \
+                #or (roll > -135.0 and roll < 135.0) \
+                #or (pitch < -45.0 or pitch > 45.0):
+                #or (yaw > -135.0 and yaw < 135.0): 
+            return True
+        else: 
+            return True     
 
     # Function to Set Robot Mode
     def set_robot_to_mode(self, target_mode):
