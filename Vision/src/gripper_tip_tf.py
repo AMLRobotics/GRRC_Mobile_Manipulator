@@ -19,7 +19,7 @@ if __name__ == '__main__':
     tag2point = geometry_msgs.msg.TransformStamped()
 
     tag2point.header.stamp = rospy.Time.now()
-    tag2point.header.frame_id = "tool0"
+    tag2point.header.frame_id = "ur_tool0"
     tag2point.child_frame_id = "gripper_end"
 
     tag2point.transform.translation.x = 0

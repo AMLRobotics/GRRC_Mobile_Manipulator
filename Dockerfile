@@ -2,7 +2,8 @@
 FROM osrf/ros:noetic-desktop-full
 
 # Install Packages for Installing Python Packages
-RUN /bin/bash -c "apt-get update -y &&\
+RUN /bin/bash -c "chmod 1777 /tmp &&\
+    apt-get update -y &&\
     apt-get install -y python3-pip &&\
     apt-get install -y python3-all-dev &&\
     apt-get install -y python3-rospkg &&\
@@ -17,17 +18,22 @@ RUN /bin/bash -c "apt-get update -y &&\
     apt-get install -y git &&\
     apt-get install -y zlib1g-dev"
 
+# Install Custom Package(ur_ros_cartesian_control)
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash &&\
+    mkdir -p ~/catkin_ws/src && cd ~/catkin_ws &&\
+    git clone https://github.com/Hangijun/ur_ros_cartesian_control.git src/ur_ros_cartesian_control &&\
+    source /opt/ros/noetic/setup.bash"
+
 # Create catkin workspace
 # Install UR Robot Driver
 RUN /bin/bash -c "apt-get update &&\
-    source /opt/ros/noetic/setup.bash &&\
-    mkdir -p ~/catkin_ws/src && cd ~/catkin_ws &&\
+    cd ~/catkin_ws &&\
     git clone https://github.com/Hangijun/Universal_Robots_ROS_Driver.git src/Universal_Robots_ROS_Driver &&\
     git clone -b calibration_devel https://github.com/fmauch/universal_robot.git src/fmauch_universal_robot &&\    
     sudo apt update -qq &&\
-    rosdep update &&\
+    rosdep update --include-eol-distros &&\
     rosdep install --from-paths src --ignore-src -y &&\
-    cd ~/catkin_ws &&\
+    source /opt/ros/noetic/setup.bash &&\
     catkin_make &&\
     chmod +x src/Universal_Robots_ROS_Driver/ur_robot_driver/launch/ur10_cartesian_passthrough_bringup.launch &&\
     source devel/setup.bash"
@@ -42,7 +48,7 @@ RUN /bin/bash -c "apt-get update &&\
     git clone https://github.com/UniversalRobots/Universal_Robots_ROS_cartesian_control_msgs.git src/Universal_Robots_ROS_cartesian_control_msgs &&\
     git clone https://github.com/UniversalRobots/Universal_Robots_ROS_controllers_cartesian.git src/Universal_Robots_ROS_controllers_cartesian &&\
     sudo apt update -qq &&\
-    rosdep update &&\
+    rosdep update --include-eol-distros &&\
     rosdep install --from-paths src --ignore-src -y &&\
     catkin_make &&\
     source devel/setup.bash"
@@ -61,14 +67,6 @@ RUN /bin/bash -c "cd ~/catkin_ws &&\
 RUN /bin/bash -c "apt-get update -y &&\
     apt-get install -y python3-tk &&\
     apt-get install -y tk-dev"
-
-# Install Custom Package(ur_ros_cartesian_control)
-RUN /bin/bash -c "cd ~/catkin_ws &&\
-    git clone https://github.com/Hangijun/ur_ros_cartesian_control.git src/ur_ros_cartesian_control &&\
-    source /opt/ros/noetic/setup.bash &&\
-    catkin_make &&\
-    source devel/setup.bash"
-
 
 # Install CAN Driver and canlib
 RUN /bin/bash -c "apt-get update -y && \
@@ -105,7 +103,7 @@ RUN /bin/bash -c "cd ~/catkin_ws &&\
     catkin_make &&\
     source devel/setup.bash"
 
-    RUN /bin/bash -c "apt-get update -y &&\
+RUN /bin/bash -c "apt-get update -y &&\
     sudo apt-get install -y ros-noetic-moveit &&\
     cd ~/catkin_ws &&\
     git clone https://github.com/moveit/moveit_calibration.git src/moveit_calibration && \

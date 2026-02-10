@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="base_height" value="0.709"/>
+  <arg name="manipulator_base_height" value="0.04" />
+
+  <param name="robot_description" command="$(find xacro)/xacro '$(find ur_ros_cartesian_control)/urdf/mobile_manipulator.xacro'"/>
+  <!--node pkg="tf" type="static_transform_publisher" name="mobile_to_manipulator" args="0 0 $(arg base_height)+(arg manipulator_base_height)/2 0 0 3.141592 /base_link /ur_base_link 100" /-->
+</launch>

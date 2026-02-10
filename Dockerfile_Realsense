@@ -208,15 +208,19 @@ RUN /bin/bash -c "mkdir ~/catkin_ws &&\
     git clone https://github.com/AprilRobotics/apriltag_ros.git src/apriltag_ros &&\
     git clone -b ros1-legacy https://github.com/IntelRealSense/realsense-ros src/realsense-ros &&\
     git clone https://github.com/felixchenfy/ros_detect_planes_from_depth_img src/ros_detect_planes_from_depth_img &&\
+    rosdep update --include-eol-distros &&\
     rosdep install --from-paths src --ignore-src -r -y &&\
     source /opt/ros/noetic/setup.bash &&\
     catkin_make"
 
 RUN /bin/bash -c "python3 -m pip install rosnumpy &&\
     apt install -y apriltag &&\
-    pip install ultralytics &&\
+    pip install ultralytics --no-deps psutil &&\
     pip install openpyxl &&\
     pip install xlsxwriter &&\
     pip install lap &&\
     pip install tensorflow-cpu &&\
+    pip install --upgrade typing_extensions &&\
+    pip install torch &&\
+    pip install torchvision &&\
     apt install -y ros-noetic-apriltag"

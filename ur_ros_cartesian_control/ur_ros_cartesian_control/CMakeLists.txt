@@ -6,7 +6,11 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   ur_kinematics
+  ur_description
   message_generation
+  xacro
+  robot_state_publisher
+  joint_state_publisher
 )
 
 ## Generate messages in the 'srv' folder
@@ -31,6 +35,9 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package( 
 CATKIN_DEPENDS ur_kinematics
 )
+
+install(DIRECTORY config launch meshes urdf
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 

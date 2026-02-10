@@ -23,10 +23,10 @@ standalone_tags:
   [
     {id: 0, size: 0.0728, name: Object},
     {id: 1, size: 0.0278, name: Object},
-    {id: 2, size: 0.0278, name: Place},
-    {id: 3, size: 0.0278, name: Object},
-    {id: 4, size: 0.0278, name: Object},
-    {id: 5, size: 0.0278, name: Object}
+    {id: 2, size: 0.0278, name: Object},
+    {id: 3, size: 0.0278, name: Place},
+    {id: 4, size: 0.0278, name: Place},
+    {id: 5, size: 0.0278, name: Place2}
   ]
 # ## Tag bundle definitions
 # ### Remarks

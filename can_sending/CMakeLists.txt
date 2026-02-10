@@ -28,7 +28,7 @@ find_package(catkin REQUIRED COMPONENTS
  add_message_files(
    FILES
    Pose.msg
- )
+  )
 
 ## Generate added messages and services with any dependencies listed here
  generate_messages(
@@ -37,8 +37,6 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   sensor_msgs
 )
-
-
 
 catkin_package(
   INCLUDE_DIRS include
@@ -52,7 +50,7 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(include  ${catkin_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS})
 
 add_executable(sending_CAN src/sending_CAN.cpp)
 

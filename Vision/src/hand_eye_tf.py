@@ -19,7 +19,7 @@ if __name__ == '__main__':
     end2end = geometry_msgs.msg.TransformStamped()
 
     end2end.header.stamp = rospy.Time.now()
-    end2end.header.frame_id = "tool0"
+    end2end.header.frame_id = "ur_tool0"
     end2end.child_frame_id = "camera_color_optical_frame"
 
     end2end.transform.translation.x = -0.0769723

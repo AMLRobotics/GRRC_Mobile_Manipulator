@@ -29,7 +29,7 @@ RUN /bin/bash -c "apt-get update &&\
     git clone -b kinetic-devel https://github.com/jproberge/robotiq src/Robotiq_ROS_Driver &&\
     git clone -b kinetic-devel https://github.com/ros-controls/ros_control.git src/ros_control &&\
     sudo apt update -qq &&\
-    rosdep update &&\
+    rosdep update --include-eol-distros &&\
     rosdep install --from-paths src --ignore-src -r --rosdistro=${ROS_DISTRO} -y --os=ubuntu:xenial  &&\
     cd ~/catkin_ws &&\
     catkin_make &&\

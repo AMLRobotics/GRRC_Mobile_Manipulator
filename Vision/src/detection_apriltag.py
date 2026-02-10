@@ -47,6 +47,7 @@ class VisionAT:
         self.info_sub = rospy.Subscriber('/camera/aligned_depth_to_color/camera_info', sensor_msgs.msg.CameraInfo, self.camera_info_callback)
         self.data_pub = rospy.Publisher("/prediction_data", prediction_data, queue_size = 10)
         self.model_data_sub = rospy.Subscriber("/model_data", prediction_data, self.model_callback)
+        self.is_stop_sub = rospy.Subscriber("/is_stop", std_msgs.msg.Bool, self.move_stop_callback)
 
         self.tfBuffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tfBuffer)
@@ -66,8 +67,9 @@ class VisionAT:
         self.obb_center = None
         self.obb_param = None
         self.object_norm = None
-        self.is_moving = True
+        self.is_moving = False
         self.intrinsics = None
+        self.is_stop = False
 
         #cv2.namedWindow('tag_image', cv2.WINDOW_NORMAL)
 
@@ -252,14 +254,14 @@ class VisionAT:
         data_3d = None
         object_vec = None
         for i in range(int(len(data.center_2d) / 2)):
-            center_2d = [int(data.center_2d[i * 2]), int(data.center_2d[i * 2 + 1])]
-            center_3d = [data.center_3d[i * 3], data.center_3d[i * 3 + 1], data.center_3d[i * 3 + 2]]
+            center_2d = np.array([int(data.center_2d[i * 2]), int(data.center_2d[i * 2 + 1])])
+            center_3d = np.array([data.center_3d[i * 3], data.center_3d[i * 3 + 1], data.center_3d[i * 3 + 2]])
             #cv2.circle(self.cv_image, center_2d, 10, (255, i * 100, 0), -1)
 
             point_3d = rs.rs2_deproject_pixel_to_point(self.intrinsics, center_2d, self.depth_frame[center_2d[1]][center_2d[0]])
             #print(center_3d[2] * 1000,  point_3d[2])
 
-            result = cv2.pointPolygonTest(self.obb_points, center_2d, measureDist=False)
+            result = cv2.pointPolygonTest(self.obb_points, tuple(center_2d), measureDist=False)
 
             if i == 0:
                 data_3d = np.array([[center_3d, point_3d]])
@@ -328,10 +330,14 @@ class VisionAT:
             self.vec_renew = self.vec_renew + 1
             print(self.vec_renew)
 
+    def move_stop_callback(self, data):
+        self.is_stop = data.data
+        #print(self.is_stop)
+        self.mobile_move()
 
     def calculate_target_position(self, tf_name):
         #base to tool end destination transformation
-        base = self.tfBuffer.lookup_transform('base', tf_name, rospy.Time(0))
+        base = self.tfBuffer.lookup_transform('ur_base', tf_name, rospy.Time(0))
 
         #rotoation
         q = base.transform.rotation
@@ -553,6 +559,40 @@ class VisionAT:
                 writer_v.close()
 
                 self.action = 0
+
+    def mobile_move(self):
+        if(self.is_stop and not self.is_moving):
+            self.is_moving = True
+            rospy.sleep(2.0)
+            command = "-0.337,-0.0086888,0.5,180.0,0.0,0.0,X"
+            command = command + ' ' + "-0.337,-0.0086888,0.12,180.0,0.0,0.0,X"
+            command = command + ' ' + "-0.337,-0.0086888,0.12,180.0,0.0,0.0,O"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(8.0)
+
+            command = "-0.337,-0.0086888,0.5,180.0,0.0,0.0,O"
+            command = command + ' ' + "0.0,-0.6,0.6,180.0,0.0,90.0,O"
+            self.str_pub_pos.publish(command)
+            #print(1)
+            rospy.sleep(8.0)
+
+            #destination_position = np.array([self.place2_pose[0], self.place2_pose[1], self.place2_pose[2]])
+            #print(destination_position)
+            #    0.21495    -0.78669     0.10557    0.21708    -0.78433    0.093992
+            
+            command = "0.01695,-0.69,0.6,180.0,0.0,90.0,O"
+            command = command + ' ' + "0.01695,-0.69,0.271,180.0,0.0,90.0,O"
+            command = command + ' ' + "0.01695,-0.69,0.271,180.0,0.0,90.0,X"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(6.0)
+
+            command = "0.01695,-0.69,0.6,180.0,0.0,90.0,X"
+            command = command + ' ' + "-0.3,0.0,0.5,180.0,0.0,0.0,X"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(4.0)
+
+            #self.is_moving = False
+
  
     def finalize(self):
         cv2.destroyAllWindows() 

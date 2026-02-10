@@ -38,8 +38,16 @@ services:
    - "DISPLAY=$DISPLAY"
   volumes:
    - /tmp/.X11-unix:/tmp/.X11-unix:rw
+   - ./ur_ros_cartesian_control:/root/catkin_ws/src/ur_ros_cartesian_control
    - ./ur_calibration_data:/root/ur_calibration_data
-  command: bash -c "source /opt/ros/noetic/setup.bash && cd ~/catkin_ws && catkin_make && source ~/catkin_ws/devel/setup.bash && roslaunch ur_robot_driver ur10_cartesian_passthrough_bringup.launch robot_ip:=192.168.1.102 kinematics_config:=/root/ur_calibration_data/my_robot_calibration.yaml"
+  command: bash -c "source /opt/ros/noetic/setup.bash &&\ 
+          cd ~/catkin_ws && catkin_make &&\ 
+          rm -rf /root/catkin_ws/src/fmauch_universal_robot/ur_description/urdf/ur.xacro &&\
+          cp src/ur_ros_cartesian_control/ur_ros_cartesian_control/ur.xacro src/fmauch_universal_robot/ur_description/urdf/ur.xacro &&\
+          chmod +x src/fmauch_universal_robot/ur_description/urdf/ur.xacro &&\
+          catkin_make &&\
+          source ~/catkin_ws/devel/setup.bash &&\ 
+          roslaunch ur_robot_driver ur10_cartesian_passthrough_bringup.launch robot_ip:=192.168.1.102 kinematics_config:=/root/ur_calibration_data/my_robot_calibration.yaml"
   cpus: 1.0
   privileged: true
   restart: always
@@ -101,6 +109,7 @@ services:
   volumes:
    - /tmp/.X11-unix:/tmp/.X11-unix:rw
    - ./autoware_map:/autoware
+   - ./topic_remapping:/home/autoware/Autoware/src/topic_remapping
   command: tail -F anything
   privileged: true
 
@@ -179,5 +188,28 @@ services:
     - /dev:/dev:rw    
   command: bash -c "cd ~/catkin_ws && source devel/setup.bash && rosrun robotiq_vacuum_grippers_control RobotiqVacuumGrippersRtuNode.py /dev/ttyUSB0"
   cpus: 1.0
+  privileged: true
+  restart: always
+
+ HDL_map_builder:
+  image: mm_map_create:latest
+  container_name: HDL_map_builder
+  depends_on:
+   - ros-master
+   - ros-autoware
+  networks:
+   macvlan-network:
+    ipv4_address: 192.168.1.10
+   macvlan-network2:
+    ipv4_address: 192.168.2.10
+  environment:
+   - "ROS_MASTER_URI=http://192.168.1.2:11311"
+   - "ROS_HOSTNAME=192.168.1.10"
+   - "DISPLAY=$DISPLAY" 
+   - ${XAUTHORITY}:${XAUTHORITY}"
+  volumes:
+   - /tmp/.X11-unix:/tmp/.X11-unix:rw
+   - ~/mm_ros_control/autoware_map:/root/catkin_ws/src/autoware_map
+  command: bash -c "cd /root/catkin_ws && source devel/setup.bash && catkin_make && source devel/setup.bash && roslaunch velodyne_pointcloud VLP16_points.launch"
   privileged: true
   restart: always

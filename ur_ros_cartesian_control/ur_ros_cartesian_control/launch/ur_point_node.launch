@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-
-<launch>
-  <node pkg="ur_ros_cartesian_control" type="ur_point_node.py" name="ur_point_node" output="screen"/>
-  <node pkg="ur_ros_cartesian_control" type="ur10_ik" name="UR10_ik_Solver" output="screen"/>
-</launch>

@@ -1,0 +1,5 @@
+<launch>
+    <include file="$(find runtime_manager)/launch/runtime_manager.launch"/>
+    <node pkg="topic_remapping" type="remapping_topic" name="remapping_topic" />
+    <node pkg="topic_remapping" type="detect_stop" name="detect_stop" />
+</launch>

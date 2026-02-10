@@ -2,12 +2,14 @@
 FROM osrf/ros:noetic-desktop-full
 
 # Install Packages for Installing Python Packages
-RUN /bin/bash -c "apt-get update -y &&\
+RUN /bin/bash -c "chmod 777 /tmp &&\
+    apt-get update -y &&\
     apt-get install -y python3-pip &&\
     apt-get install -y python3-all-dev &&\
     apt-get install -y python3-rospkg &&\
+    apt-get install -y ros-noetic-desktop-full --fix-missing &&\
     apt-get install -y ros-noetic-geodesy ros-noetic-pcl-ros ros-noetic-nmea-msgs ros-noetic-libg2o &&\
-    apt-get install -y ros-noetic-desktop-full --fix-missing"
+    apt-get install -y ros-noetic-velodyne"
 
 RUN /bin/bash -c "apt-get update -y &&\
     apt-get install -y build-essential &&\
@@ -18,11 +20,20 @@ RUN /bin/bash -c "apt-get update -y &&\
     apt-get install -y git &&\
     apt-get install -y zlib1g-dev"
 
+RUN /bin/bash -c "apt-get update &&\
+    source /opt/ros/noetic/setup.bash &&\
+    mkdir -p ~/catkin_ws/src &&\
+    cd ~/catkin_ws/src &&\
+    git clone https://github.com/ros-drivers/velodyne.git -b melodic-devel &&\
+    rosdep update --include-eol-distros &&\
+    cd .. && rosdep install --from-paths src --ignore-src --rosdistro noetic -y &&\
+    catkin_make &&\
+    source devel/setup.bash"
+
 # Create catkin workspace
 # Install UR Robot Driver
 RUN /bin/bash -c "apt-get update &&\
     source /opt/ros/noetic/setup.bash &&\
-    mkdir -p ~/catkin_ws/src &&\
     cd ~/catkin_ws/src &&\
     git clone https://github.com/koide3/ndt_omp.git &&\
     git clone https://github.com/SMRT-AIST/fast_gicp.git --recursive &&\
@@ -33,6 +44,7 @@ RUN /bin/bash -c "apt-get update &&\
 # Install Pynput Package for Keyboard Input Control
 RUN /bin/bash -c "python3 -m pip install pynput &&\
     python3 -m pip install scipy &&\
+    python3 -m pip install ProgressBar2 &&\
     apt-get update -y &&\
     apt-get install -y python3-tk &&\
     apt-get install -y tk-dev"

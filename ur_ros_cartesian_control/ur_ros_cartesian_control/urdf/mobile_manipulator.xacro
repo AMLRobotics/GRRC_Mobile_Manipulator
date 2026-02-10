@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="ros.org" name="custom_mobile_manipulator">
+    <xacro:macro name="mobile_manipulator">
+
+        <xacro:property name="base_height" value="0.709" />
+        <xacro:property name="base_length" value="0.75" />
+        <xacro:property name="base_width" value="0.5" />
+        <xacro:property name="manipulator_base_height" value="0.04" />
+
+        <xacro:include filename="$(find ur_description)/urdf/inc/ur10_macro.xacro"/>
+
+        <!-- *************************************************** -->
+        <!-- 1. Custom Mobile Base Definition (Links and Joints) -->
+        <!-- *************************************************** -->
+
+        <!-- Base Link (chassis) -->
+        <link name="base_link"/>
+        <link name="mobile_link">
+            <visual>
+                <origin xyz="${-base_length / 2} ${-base_width / 2} 0" rpy="1.57079632679 0 1.57079632679"/>
+                <geometry>
+                    <mesh filename="package://ur_ros_cartesian_control/meshes/Total_assy.STL" scale="0.001 0.001 0.001"/>
+                </geometry>
+            </visual>
+            <collision>
+                <origin xyz="0 0 ${base_height / 2}" rpy="3.141592 0 3.141592"/>
+                <geometry>
+                    <box size="${base_length} ${base_width} ${base_height}"/>
+                </geometry>
+            </collision>
+            <!-- Inertial definitions are necessary for simulation -->
+            <inertial>
+                <mass value="50.0" />
+                <origin xyz="0 0 0" />
+                <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0" />
+            </inertial>
+        </link>
+
+        <!-- *************************************************** -->
+        <!-- 2. Call the UR10 macro and attach it to the base_link -->
+        <!-- *************************************************** -->
+        <xacro:ur10_robot
+            prefix="ur_"
+            />
+
+        <joint name="base_to_mobile" type="fixed">
+            <parent link="base_link"/> 
+            <child link="mobile_link"/> 
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+        </joint>
+        <joint name="mobile_to_manipulator" type="fixed">
+            <parent link="mobile_link"/> 
+            <child link="ur_base_link"/> 
+            <origin xyz="0 0 ${base_height+manipulator_base_height/2}" rpy="0 0 3.141592"/>
+        </joint>
+    </xacro:macro>
+    <xacro:mobile_manipulator/>
+</robot>
