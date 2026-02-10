@@ -8,10 +8,10 @@
     <arg name="image_topic" value="image_rect_color"/>
   </include>
 
-  <node pkg="vision_detection" type="gripper_tip_tf.py" name="gripper_tip_tf"/>
-  <node pkg="vision_detection" type="gripping_point_tf.py" name="gripping_point_tf"/>
-  <node pkg="vision_detection" type="hand_eye_tf.py" name="hand_eye_tf"/>
-  <node pkg="vision_detection" type="tool0_destination_tf.py" name="tool0_destination"/>
+  <node pkg="tf" type="static_transform_publisher" name="ur_plange_to_gripper" args="0 0 0.180 0 0 0 /ur_tool0 /gripper_end 100" />
+  <node pkg="tf" type="static_transform_publisher" name="object_to_gripping_point" args="0 0.04 -0.003 3.1415927 0 1.5707963 /Object /gripping_point 100" />
+  <node pkg="tf" type="static_transform_publisher" name="ur_plange_camera" args="-0.0769723 0.0389689 0.0609386 0.0037435 -0.0033929 -1.5970089 /ur_tool0 /gripper_end 100" />
+  <node pkg="tf" type="static_transform_publisher" name="gripping_point_to_plange_destination" args="0 0 -0.174 0 0 0 /ur_tool0 /gripper_end 100" />
 
   <node pkg="ros_detect_planes_from_depth_img" type="run_server.py" name="run_server" args="--config /root/catkin_ws/src/ros_detect_planes_from_depth_img/config/plane_detector_config.yaml
     --depth_topic camera/aligned_depth_to_color/image_raw
