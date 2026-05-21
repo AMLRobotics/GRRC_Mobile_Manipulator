@@ -46,18 +46,22 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 # Add the new executable target
 add_executable(remapping_topic src/remapping_topic.cpp)
 add_executable(detect_stop src/detect_stop.cpp)
+add_executable(senario_controller src/senario_controller.cpp)
 
 target_include_directories(remapping_topic PRIVATE ${catkin_INCLUDE_DIRS})
 target_include_directories(detect_stop PRIVATE ${catkin_INCLUDE_DIRS})
+target_include_directories(senario_controller PRIVATE ${catkin_INCLUDE_DIRS})
 
 # Link the executable against necessary libraries (roscpp, std_msgs, autoware_msgs, etc.)
 target_link_libraries(detect_stop ${catkin_LIBRARIES}) 
 target_link_libraries(remapping_topic ${catkin_LIBRARIES})
+target_link_libraries(senario_controller ${catkin_LIBRARIES})
 
 add_dependencies(remapping_topic ${catkin_EXPORTED_TARGETS})
 add_dependencies(detect_stop ${catkin_EXPORTED_TARGETS})
+add_dependencies(senario_controller ${catkin_EXPORTED_TARGETS})
 
-install(TARGETS remapping_topic detect_stop
+install(TARGETS remapping_topic detect_stop senario_controller
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -121,6 +121,9 @@ services:
     networks: 
       macvlan-network: 
         ipv4_address: 192.168.1.7
+    stdin_open: true # (-i)
+    tty: true        # (-t)
+    ipc: host
     environment:
       - "ROS_MASTER_URI=http://192.168.1.2:11311"
       - "ROS_HOSTNAME=192.168.1.7"
@@ -153,10 +156,14 @@ services:
   networks: 
     macvlan-network: 
       ipv4_address: 192.168.1.8
+  stdin_open: true # (-i)
+  tty: true        # (-t)
+  ipc: host
   environment:
     - "ROS_MASTER_URI=http://192.168.1.2:11311"
     - "ROS_HOSTNAME=192.168.1.8"
     - "DISPLAY=$DISPLAY" 
+    - "QT_X11_NO_MITSHM=1"
   volumes:
     - /tmp/.X11-unix:/tmp/.X11-unix:rw    
     - /dev/bus/usb:/dev/bus/usb:rw  

@@ -323,7 +323,7 @@ class UR():
         if key == keyboard.KeyCode(char='c'):
             self.move_flag = True
             # pose list
-            pose_list = [[-0.5, -0.0, 0.5, 180.0, 0.0, 0.0]]
+            pose_list = [[-0.75,0.0,0.5,180.0,0.0,90.0]]
 
             time_from_start = 5.0
 

@@ -54,12 +54,8 @@ void VelocityCallback(const geometry_msgs::TwistStamped::ConstPtr& msg)
 {
     // Extract the first lane message from the array
     vel = msg->twist;
-
-    // Publish the single Lane message to the /base_waypoints topic
-    if (publish_active.load())
-    {
-        cmd_vel_pub.publish(vel);
-    }
+    cmd_vel_pub.publish(vel);
+    
 }
 
 // 두 점 사이의 유클리드 거리를 계산하는 헬퍼 함수
@@ -114,31 +110,6 @@ int getch()
     return c;
 }
 
-// 키 입력을 전담하는 별도 스레드 함수
-void keyboard_input_thread(ros::Publisher& pub)
-{
-    while (ros::ok())
-    {
-        int c = getch();
-
-        if (c == 's') {
-            // 's' 키를 누르면 발행 활성화 및 메시지 설정
-            publish_active.store(true);
-            ROS_INFO("TOPIC ADIVERTISE STARTED");
-        } else if (c == 'p') {
-            // 'p' 키를 누르면 발행 비활성화 (Pause)
-            publish_active.store(false);
-            ROS_INFO("TOPIC ADIVERTISE PAUSED)");
-        } else if (c == 'q') {
-            // 'q' 키를 누르면 발행 비활성화 및 종료 준비
-            publish_active.store(false);
-            ROS_INFO("QUIT COMMAND REQUESTED.");
-            ros::shutdown(); // ROS 시스템 종료 요청
-            break;
-        }
-    }
-}
-
 int main(int argc, char **argv)
 {
     // Initialize the ROS node
@@ -156,24 +127,9 @@ int main(int argc, char **argv)
     ros::Subscriber sub2 = nh.subscribe("/twist_cmd", 1, VelocityCallback);
     ros::Subscriber pose_sub = nh.subscribe("/current_pose", 1, poseCallback);
 
-    std::thread input_thread(keyboard_input_thread, std::ref(cmd_vel_pub));
-
-    ROS_INFO("C++ LaneArray to Lane converter node started and ready.");
-    ROS_INFO("------------------------------------------");
-    ROS_INFO("  Press 's' to START continuous publishing ('START_CONTINUOUS')");
-    ROS_INFO("  Press 'p' to PAUSE publishing");
-    ROS_INFO("  Press 'q' to QUIT");
-    ROS_INFO("------------------------------------------");
-
     /*...TODO...*/
 
     ros::spin();
-
-    // 메인 루프 종료 후 스레드 정리
-    if (input_thread.joinable()) 
-    {
-        input_thread.join();
-    } 
 
     return 0;
 }

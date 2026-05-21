@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 
 import rospy
 import cv2
@@ -30,6 +29,7 @@ from vision_detection.msg import PlaneResults, prediction_data
 import pyrealsense2 as rs
 import tensorflow as tf
 from scipy.spatial.transform import Rotation as R
+from tf.transformations import euler_matrix, compose_matrix, translation_from_matrix, euler_from_matrix
 
 class VisionAT:
     def __init__(self):
@@ -42,12 +42,13 @@ class VisionAT:
         self.tag_sub = rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self.tag_callback)
         self.tf_sub = rospy.Subscriber('/tf', tf2_msgs.msg.TFMessage, self.tf_callback)
         self.imu_sub = rospy.Subscriber('/camera/imu', sensor_msgs.msg.Imu, self.imu_callback)
-        self.vector_sub = rospy.Subscriber('/detect_plane/results', PlaneResults, self.vector_callback)
+        #self.vector_sub = rospy.Subscriber('/detect_plane/results', PlaneResults, self.vector_callback)
         self.str_pub_pos = rospy.Publisher("str_pos", std_msgs.msg.String, queue_size = 10)
         self.info_sub = rospy.Subscriber('/camera/aligned_depth_to_color/camera_info', sensor_msgs.msg.CameraInfo, self.camera_info_callback)
         self.data_pub = rospy.Publisher("/prediction_data", prediction_data, queue_size = 10)
         self.model_data_sub = rospy.Subscriber("/model_data", prediction_data, self.model_callback)
-        self.is_stop_sub = rospy.Subscriber("/is_stop", std_msgs.msg.Bool, self.move_stop_callback)
+        self.senario_sub = rospy.Subscriber("/manipulator_task_command", std_msgs.msg.String, self.senario_callback)
+        self.senario_pub = rospy.Publisher("/manipulator_task_end", std_msgs.msg.String, queue_size = 10)
 
         self.tfBuffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tfBuffer)
@@ -57,7 +58,10 @@ class VisionAT:
 
         self.object_pose = None
         self.place_pose = None
-        self.place2_pose = None
+        self.place_m_pose = None
+        self.place_sc_pose = None
+        self.place_pt_pose = None
+        self.place_tr_pose = None
         self.model_position = None
         self.marker_position = None
         self.tag_name = None
@@ -69,7 +73,13 @@ class VisionAT:
         self.object_norm = None
         self.is_moving = False
         self.intrinsics = None
-        self.is_stop = False
+        self.tasks = None
+        self.demo_t_to_z = np.array([0.0895, 0, 0.04])
+        self.demo_t_to_s = np.array([0, -0.15, 0])
+        self.demo_t_to_t1 = np.array([-0.132, 0.071, 0])
+        self.demo_t_to_t2 = np.array([-0.132, 0.215, 0])
+        self.demo_t_to_p = np.array([0.0875, 0, 0])
+        self.trans_t_f = euler_matrix(-np.pi, 0, -np.pi / 2)
 
         #cv2.namedWindow('tag_image', cv2.WINDOW_NORMAL)
 
@@ -181,19 +191,20 @@ class VisionAT:
         try:
             self.cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
 
-            #image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB)
-            results = self.model.track(source = self.cv_image, conf = 0.7)
-            cv2.imshow('tag_image', results[0].plot())
+            image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB)
+            #results = self.model.track(source = self.cv_image, conf = 0.7)
+            #cv2.imshow('tag_image', results[0].plot())
+            cv2.imshow('tag_image', image)
             cv2.waitKey(1)
 
-            obbox = results[0].obb.xywhr[0].cpu().numpy()
-            self.obb_points = results[0].obb.xyxyxyxy[0].cpu().numpy()
+            #obbox = results[0].obb.xywhr[0].cpu().numpy()
+            #self.obb_points = results[0].obb.xyxyxyxy[0].cpu().numpy()
 
-            self.obb_center = rs.rs2_deproject_pixel_to_point(self.intrinsics, [int(obbox[0]), int(obbox[1])], self.depth_frame[int(obbox[1])][int(obbox[0])])
-            self.obb_center[2] = self.obb_center[2] / 1000
-            self.obb_param = np.array([[obbox[2], obbox[3], obbox[4]]])
+            #self.obb_center = rs.rs2_deproject_pixel_to_point(self.intrinsics, [int(obbox[0]), int(obbox[1])], self.depth_frame[int(obbox[1])][int(obbox[0])])
+            #self.obb_center[2] = self.obb_center[2] / 1000
+            #self.obb_param = np.array([[obbox[2], obbox[3], obbox[4]]])
   
-            self.obb_param[0][2] = self.calculate_orientation(obbox[2], obbox[3], obbox[4])
+            #self.obb_param[0][2] = self.calculate_orientation(obbox[2], obbox[3], obbox[4])
             #calculate_target_position()
 
         except CvBridgeError as e:
@@ -231,18 +242,33 @@ class VisionAT:
             else:
                 self.tag_name.extend(list(data.detections[i].id))
 
-        if len([self.tag_name for i in self.tag_name if i == 2]) == 1:
-            self.object_pose = self.calculate_target_position('tool0_destination')
-            #print(self.object_pose)
-
-        if len([self.tag_name for i in self.tag_name if i == 3]) == 1:    
-            self.place_pose = self.calculate_target_position('Place')
-            #print(self.place_pose)
-
-        if len([self.tag_name for i in self.tag_name if i == 4]) == 1:       
-            self.place2_pose = self.calculate_target_position('Place2')
+        if len([self.tag_name for i in self.tag_name if i == 0]) == 1:       
+            self.place_pt_pose = self.calculate_target_position('Place_pt')
+            pt_euler = euler_matrix(self.place_pt_pose[3] * np.pi / 180.0, self.place_pt_pose[4] * np.pi / 180.0, self.place_pt_pose[5] * np.pi / 180.0)
+            pt_euler_f = np.dot(pt_euler, self.trans_t_f)
+            self.place_pt_pose[3:] = np.array(euler_from_matrix(pt_euler_f)) * 180.0 / np.pi
             #print(self.place2_pose)
 
+        elif len([self.tag_name for i in self.tag_name if i == 1]) == 1:       
+            self.place_tr_pose = self.calculate_target_position('Place_tr')
+            tr_euler = euler_matrix(self.place_tr_pose[3] * np.pi / 180.0, self.place_tr_pose[4] * np.pi / 180.0, self.place_tr_pose[5] * np.pi / 180.0)
+            tr_euler_f = np.dot(tr_euler, self.trans_t_f)
+            self.place_tr_pose[3:] = np.array(euler_from_matrix(tr_euler_f)) * 180.0 / np.pi
+            print(self.place_tr_pose)
+
+        elif len([self.tag_name for i in self.tag_name if i == 5]) == 1:       
+            self.place_m_pose = self.calculate_target_position('Place_m')
+            m_euler = euler_matrix(self.place_m_pose[3] * np.pi / 180.0, self.place_m_pose[4] * np.pi / 180.0, self.place_m_pose[5] * np.pi / 180.0)
+            m_euler_f = np.dot(m_euler, self.trans_t_f)
+            self.place_m_pose[3:] = np.array(euler_from_matrix(m_euler_f)) * 180.0 / np.pi        
+            print(self.place_m_pose)
+        
+        elif len([self.tag_name for i in self.tag_name if i == 6]) == 1:
+            self.place_sc_pose = self.calculate_target_position('Place_sc')
+            sc_euler = euler_matrix(self.place_sc_pose[3] * np.pi / 180.0, self.place_sc_pose[4] * np.pi / 180.0, self.place_sc_pose[5] * np.pi / 180.0)
+            sc_euler_f = np.dot(sc_euler, self.trans_t_f)
+            self.place_sc_pose[3:] = np.array(euler_from_matrix(sc_euler_f)) * 180.0 / np.pi
+            #print(self.place_sc_pose)
 
         tag = data.detections[0].pose.pose.pose
         self.tag_pos = np.array([[tag.position.x, tag.position.y, tag.position.z, tag.orientation.x, tag.orientation.y, tag.orientation.z, tag.orientation.w]])
@@ -330,8 +356,8 @@ class VisionAT:
             self.vec_renew = self.vec_renew + 1
             print(self.vec_renew)
 
-    def move_stop_callback(self, data):
-        self.is_stop = data.data
+    def senario_callback(self, data):
+        self.tasks = data.data
         #print(self.is_stop)
         self.mobile_move()
 
@@ -356,7 +382,7 @@ class VisionAT:
 
     def manual_move(self, key):
         # pick and place task in place
-        if key == keyboard.KeyCode(char='u'):
+        """if key == keyboard.KeyCode(char='u'):
             command = "{},{},{},{},{},{},O".format(self.object_pose[0], self.object_pose[1], self.object_pose[2], self.object_pose[3], self.object_pose[4], self.object_pose[5])
             command = command + ' ' + "-0.3,0.0,0.5,180.0,0.0,0.0,O"
             command = command + ' ' + "{},{},{},{},{},{},X".format(self.object_pose[0], self.object_pose[1], self.object_pose[2], self.object_pose[3], self.object_pose[4], self.object_pose[5])
@@ -558,41 +584,227 @@ class VisionAT:
                 writer_t.close()
                 writer_v.close()
 
-                self.action = 0
+                self.action = 0"""
 
     def mobile_move(self):
-        if(self.is_stop and not self.is_moving):
+        if self.tasks == "PICK_OBJECT_1":
             self.is_moving = True
             rospy.sleep(2.0)
-            command = "-0.337,-0.0086888,0.5,180.0,0.0,0.0,X"
-            command = command + ' ' + "-0.337,-0.0086888,0.12,180.0,0.0,0.0,X"
-            command = command + ' ' + "-0.337,-0.0086888,0.12,180.0,0.0,0.0,O"
+            command = "-0.3,-0.0,0.5,180.0,0.0,0.0,X"
+            command = command + ' ' + "-0.3,0.0,1.0,180.0,0.0,0.0,X"
+            command = command + ' ' + "0.0,-0.65,1.0,180.0,0.0,90.0,X"
             self.str_pub_pos.publish(command)
             rospy.sleep(8.0)
 
-            command = "-0.337,-0.0086888,0.5,180.0,0.0,0.0,O"
-            command = command + ' ' + "0.0,-0.6,0.6,180.0,0.0,90.0,O"
+            command = "0.0,-0.65,{},180.0,0.0,90.0,X".format(0.25 + 0.7)
+            command = command + ' ' + "0.0,-0.65,{},180.0,0.0,90.0,O".format(0.25 + 0.7)
+            command = command + ' ' + "0.0,-0.65,1.0,180.0,0.0,90.0,O"
+            command = command + ' ' + "-0.3,0.0,1.0,180.0,0.0,0.0,O"
+            command = command + ' ' + "-0.3,-0.0,0.5,180.0,0.0,0.0,O"
             self.str_pub_pos.publish(command)
-            #print(1)
-            rospy.sleep(8.0)
+            rospy.sleep(14.0) 
 
-            #destination_position = np.array([self.place2_pose[0], self.place2_pose[1], self.place2_pose[2]])
-            #print(destination_position)
-            #    0.21495    -0.78669     0.10557    0.21708    -0.78433    0.093992
+            command = "-0.3,-0.0,0.5,180.0,0.0,0.0,O"
+            command = "-0.5,-0.0,0.3,180.0,0.0,0.0,O"
+            command = command + ' ' + "-0.7,0.0,0.3,180.0,0.0,0.0,O"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(12.0)
+
+            if self.place_tr_pose is None:
+                command = "-0.7,0.1,0.3,180.0,0.0,0.0,O"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+
+            if self.place_tr_pose is None:
+                command = "-0.7,-0.1,0.3,180.0,0.0,0.0,O"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
             
-            command = "0.01695,-0.69,0.6,180.0,0.0,90.0,O"
-            command = command + ' ' + "0.01695,-0.69,0.271,180.0,0.0,90.0,O"
-            command = command + ' ' + "0.01695,-0.69,0.271,180.0,0.0,90.0,X"
+            command = "-0.7,0.0,0.3,180.0,0.0,0.0,O"
+            command = command + ' ' + "{},{},0.3,180.0,0.0,0.0,O".format(self.demo_t_to_t1[0] + self.place_tr_pose[0], self.demo_t_to_t1[1] + self.place_tr_pose[1])
+            command = command + ' ' + "{},{},{},180.0,0.0,0.0,O".format(self.demo_t_to_t1[0] + self.place_tr_pose[0], self.demo_t_to_t1[1] + self.place_tr_pose[1], 0.245 + self.demo_t_to_t1[2] + self.place_tr_pose[2])
+            command = command + ' ' + "{},{},{},180.0,0.0,0.0,X".format(self.demo_t_to_t1[0] + self.place_tr_pose[0], self.demo_t_to_t1[1] + self.place_tr_pose[1], 0.245 + self.demo_t_to_t1[2] + self.place_tr_pose[2])
+            command = command + ' ' + "{},{},0.3,180.0,0.0,0.0,X".format(self.demo_t_to_t1[0] + self.place_tr_pose[0], self.demo_t_to_t1[1] + self.place_tr_pose[1])
+            command = command + ' ' + "-0.5,-0.0,0.3,180.0,0.0,0.0,X"
+            command = command + ' ' + "-0.3,-0.0,0.5,180.0,0.0,0.0,X"
             self.str_pub_pos.publish(command)
-            rospy.sleep(6.0)
+            rospy.sleep(16.0)
 
-            command = "0.01695,-0.69,0.6,180.0,0.0,90.0,X"
+            self.data_pub.publish("END_PICK_OBJECT_1")
+            self.is_moving = False
+            self.place_tr_pose = None
+
+        elif self.tasks == "PLACE_OBJECT_1":
+            self.is_moving = True
+            #----to do----
+            rospy.sleep(2.0)
+            command = "-0.3,-0.0,0.5,180.0,0.0,0.0,X"
+            command = command + ' ' + "-0.75,0.0,0.5,180.0,0.0,0.0,X"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(10.0)
+
+            if self.place_tr_pose is None:
+                command = "-0.75,0.1,0.5,180.0,0.0,0.0,X"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+
+            if self.place_tr_pose is None:
+                command = "-0.75,-0.1,0.5,180.0,0.0,0.0,X"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+            
+            command = "{},{},0.5,180.0,0.0,0.0,X".format(self.demo_t_to_t1[0] + self.place_tr_pose[0], self.demo_t_to_t1[1] + self.place_tr_pose[1])
+            command = command + ' ' + "{},{},{},180.0,0.0,0.0,X".format(self.demo_t_to_t1[0] + self.place_tr_pose[0], self.demo_t_to_t1[1] + self.place_tr_pose[1], 0.24 + self.demo_t_to_t1[2] + self.place_tr_pose[2])
+            command = command + ' ' + "{},{},{},180.0,0.0,0.0,O".format(self.demo_t_to_t1[0] + self.place_tr_pose[0], self.demo_t_to_t1[1] + self.place_tr_pose[1], 0.24 + self.demo_t_to_t1[2] + self.place_tr_pose[2])
+            command = command + ' ' + "{},{},0.5,180.0,0.0,0.0,O".format(self.demo_t_to_t1[0] + self.place_tr_pose[0], self.demo_t_to_t1[1] + self.place_tr_pose[1])
+            command = command + ' ' + "-0.3,-0.0,0.5,180.0,0.0,0.0,O"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(12.0)
+
+            command = "-0,-0.6,0.5,180.0,0.0,90.0,O"
+            command = command + ' ' + "-0,-0.9,0.5,180.0,0.0,90.0,O"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(10.0)
+
+            if self.place_m_pose is None:
+                command = "-0.1,-0.9,0.5,180.0,0.0,90.0,O"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+
+            if self.place_m_pose is None:
+                command = "0.1,-0.9,0.5,180.0,0.0,90.0,O"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+
+            command = "{},{},0.5,180.0,0.0,90,O".format(self.demo_t_to_z[0] + self.place_m_pose[0], self.demo_t_to_z[1] + self.place_m_pose[1])
+            command = command + ' ' + "{},{},{},180.0,0.0,90,O".format(self.demo_t_to_z[0] + self.place_m_pose[0], self.demo_t_to_z[1] + self.place_m_pose[1], 0.24 + self.demo_t_to_z[2] + self.place_m_pose[2])
+            command = command + ' ' + "{},{},{},180.0,0.0,90,X".format(self.demo_t_to_z[0] + self.place_m_pose[0], self.demo_t_to_z[1] + self.place_m_pose[1], 0.24 + self.demo_t_to_z[2] + self.place_m_pose[2])
+            command = command + ' ' + "{},{},0.5,180.0,0.0,90,X".format(self.demo_t_to_z[0] + self.place_m_pose[0], self.demo_t_to_z[1] + self.place_m_pose[1])
+            command = command + ' ' + "-0,-0.6,0.5,180.0,0.0,90.0,X"
             command = command + ' ' + "-0.3,0.0,0.5,180.0,0.0,0.0,X"
             self.str_pub_pos.publish(command)
-            rospy.sleep(4.0)
+            rospy.sleep(14.0)
 
-            #self.is_moving = False
+            self.senario_pub.publish("END_PLACE_OBJECT_1")
+            self.is_moving = False
+            self.place_tr_pose = None
 
+        elif self.tasks == "PICK_OBJECT_2":
+            self.is_moving = True
+            #----to do----
+            rospy.sleep(2.0)
+            command = "-0.3,-0.0,0.5,180.0,0.0,0.0,X"
+            command = command + ' ' + "-0,-0.6,0.5,180.0,0.0,90.0,X"
+            command = command + ' ' + "-0,-0.9,0.5,180.0,0.0,90.0,X"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(16.0)
+
+            if self.place_m_pose is None:
+                command = "-0.1,-0.9,0.5,180.0,0.0,90.0,X"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+
+            else:
+                pass
+
+            if self.place_m_pose is None:
+                command = "0.1,-0.9,0.5,180.0,0.0,90.0,X"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+
+            else:
+                pass
+
+            command = "{},{},0.5,180.0,0.0,90.0,X".format(self.demo_t_to_z[0] + self.place_m_pose[0], self.demo_t_to_z[1] + self.place_m_pose[1])
+            command = command + ' ' + "{},{},{},180.0,0.0,90.0,X".format(self.demo_t_to_z[0] + self.place_m_pose[0], self.demo_t_to_z[1] + self.place_m_pose[1], 0.24 + self.demo_t_to_z[2] + self.place_m_pose[2])
+            command = command + ' ' + "{},{},{},180.0,0.0,90.0,O".format(self.demo_t_to_z[0] + self.place_m_pose[0], self.demo_t_to_z[1] + self.place_m_pose[1], 0.24 + self.demo_t_to_z[2] + self.place_m_pose[2])
+            command = command + ' ' + "{},{},0.5,180.0,0.0,90.0,O".format(self.demo_t_to_z[0] + self.place_m_pose[0], self.demo_t_to_z[1] + self.place_m_pose[1])
+            command = command + ' ' + "-0,-0.6,0.5,180.0,0.0,90.0,O"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(12.0) 
+
+            command = "-0.3,-0.0,0.5,180.0,0.0,0.0,O"
+            command = command + ' ' + "-0.75,0.0,0.5,180.0,0.0,0.0,O"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(12.0)
+
+            if self.place_tr_pose is None:
+                command = "-0.75,0.1,0.5,180.0,0.0,0.0,O"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+
+            if self.place_tr_pose is None:
+                command = "-0.75,-0.1,0.5,180.0,0.0,0.0,O"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+            
+            command = "{},{},0.5,180.0,0.0,0.0,O".format(self.demo_t_to_t2[0] + self.place_tr_pose[0], self.demo_t_to_t2[1] + self.place_tr_pose[1])
+            command = command + ' ' + "{},{},{},180.0,0.0,0.0,O".format(self.demo_t_to_t2[0] + self.place_tr_pose[0], self.demo_t_to_t2[1] + self.place_tr_pose[1], 0.24 + self.demo_t_to_t2[2] + self.place_tr_pose[2])
+            command = command + ' ' + "{},{},{},180.0,0.0,0.0,X".format(self.demo_t_to_t2[0] + self.place_tr_pose[0], self.demo_t_to_t2[1] + self.place_tr_pose[1], 0.24 + self.demo_t_to_t2[2] + self.place_tr_pose[2])
+            command = command + ' ' + "{},{},0.5,180.0,0.0,0.0,X".format(self.demo_t_to_t2[0] + self.place_tr_pose[0], self.demo_t_to_t2[1] + self.place_tr_pose[1])
+            command = command + ' ' + "-0.3,-0.0,0.5,180.0,0.0,0.0,X"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(12.0)
+
+            self.senario_pub.publish("END_PICK_OBJECT_2")
+            self.is_moving = False
+            self.place_tr_pose = None
+            self.place_m_pose = None
+
+        elif self.tasks == "PLACE_OBJECT_2":
+            self.is_moving = True
+            #----to do----
+            rospy.sleep(2.0)
+            command = "-0.3,-0.0,0.5,180.0,0.0,0.0,X"
+            command = command + ' ' + "-0.75,0.0,0.5,180.0,0.0,0.0,X"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(10.0)
+
+            if self.place_tr_pose is None:
+                command = "-0.75,0.1,0.5,180.0,0.0,0.0,X"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+
+            if self.place_tr_pose is None:
+                command = "-0.75,-0.1,0.7,180.0,0.0,0.0,X"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+            
+            command = "{},{},0.5,180.0,0.0,0.0,X".format(self.demo_t_to_t2[0] + self.place_tr_pose[0], self.demo_t_to_t2[1] + self.place_tr_pose[1])
+            command = command + ' ' + "{},{},{},180.0,0.0,0.0,X".format(self.demo_t_to_t2[0] + self.place_tr_pose[0], self.demo_t_to_t2[1] + self.place_tr_pose[1], 0.24 + self.demo_t_to_t2[2] + self.place_tr_pose[2])
+            command = command + ' ' + "{},{},{},180.0,0.0,0.0,O".format(self.demo_t_to_t2[0] + self.place_tr_pose[0], self.demo_t_to_t2[1] + self.place_tr_pose[1], 0.24 + self.demo_t_to_t2[2] + self.place_tr_pose[2])
+            command = command + ' ' + "{},{},0.5,180.0,0.0,0.0,O".format(self.demo_t_to_t2[0] + self.place_tr_pose[0], self.demo_t_to_t2[1] + self.place_tr_pose[1])
+            command = command + ' ' + "-0.3,-0.0,0.5,180.0,0.0,0.0,O"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(12.0)
+
+            command = "-0,-0.3,0.5,180.0,0.0,90.0,O"
+            command = command + ' ' + "-0,-0.7,0.5,180.0,0.0,90.0,O"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(10.0)
+
+            if self.place_sc_pose is None:
+                command = "-0.1,-0.7,0.5,180.0,0.0,90.0,O"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+
+            if self.place_sc_pose is None:
+                command = "0.1,-0.7,0.5,180.0,0.0,90.0,O"
+                self.str_pub_pos.publish(command)
+                rospy.sleep(6.0)
+
+            command = "{},{},0.5,180.0,0.0,90.0,O".format(self.demo_t_to_s[0] + self.place_sc_pose[0], self.demo_t_to_s[1] + self.place_sc_pose[1])
+            command = command + ' ' + "{},{},{},180.0,0.0,90.0,O".format(self.demo_t_to_s[0] + self.place_sc_pose[0], self.demo_t_to_s[1] + self.place_sc_pose[1], 0.24 + self.demo_t_to_s[2] + self.place_sc_pose[2])
+            command = command + ' ' + "{},{},{},180.0,0.0,90.0,X".format(self.demo_t_to_s[0] + self.place_sc_pose[0], self.demo_t_to_s[1] + self.place_sc_pose[1], 0.24 + self.demo_t_to_s[2] + self.place_sc_pose[2])
+            command = command + ' ' + "{},{},0.5,180.0,0.0,90.0,X".format(self.demo_t_to_s[0] + self.place_sc_pose[0], self.demo_t_to_s[1] + self.place_sc_pose[1])
+            command = command + ' ' + "-0,-0.4,0.5,180.0,0.0,90.0,X"
+            command = command + ' ' + "-0.3,0.0,0.5,180.0,0.0,0.0,X"
+            self.str_pub_pos.publish(command)
+            rospy.sleep(14.0) 
+
+            self.senario_pub.publish("END_PLACE_OBJECT_2")
+            self.is_moving = False
+            self.place_tr_pose = None
  
     def finalize(self):
         cv2.destroyAllWindows() 

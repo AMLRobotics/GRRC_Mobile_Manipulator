@@ -39,10 +39,6 @@ catkin_install_python(PROGRAMS
    src/calibrate.py
    src/test_data_collect.py
    src/detection_apriltag.py
-   src/gripper_tip_tf.py
-   src/gripping_point_tf.py
-   src/hand_eye_tf.py
-   src/tool0_destination_tf.py
    src/prediction_model.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
